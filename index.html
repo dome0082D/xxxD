@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xxxD | Global Video Vault</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --red: #ff0000; --bg: #050505; --green: #00ff00; --white: #ffffff; --card: #121212; }
+        * { box-sizing: border-box; outline: none; transition: 0.2s ease; }
+        body { font-family: 'Arial Black', sans-serif; background: var(--bg); color: var(--white); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* WATERMARK SULLO SFONDO */
+        .bg-watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 22vw; font-weight: 900; color: rgba(255, 0, 0, 0.015); z-index: 0; pointer-events: none; user-select: none; }
+
+        header { background: #000; padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--red); z-index: 1000; }
+        .logo { color: var(--red); font-size: 38px; font-weight: 900; letter-spacing: -2px; cursor: pointer; text-decoration: none; text-shadow: 2px 2px #000; }
+        .btn-green { background: var(--green); color: black; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; font-size: 11px; }
+
+        .main-wrapper { display: grid; grid-template-columns: 260px 1fr 300px; flex: 1; overflow: hidden; position: relative; z-index: 1; }
+        
+        .sidebar-left { background: rgba(0,0,0,0.95); padding: 25px 15px; border-right: 1px solid #222; }
+        .menu-item { padding: 15px; cursor: pointer; border-radius: 8px; margin-bottom: 10px; color: #777; font-size: 13px; text-transform: uppercase; border-left: 4px solid transparent; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,0,0,0.1); color: var(--red); border-left: 4px solid var(--red); }
+
+        .content { padding: 40px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--red) #000; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .title { font-size: 28px; margin-bottom: 30px; border-left: 6px solid var(--green); padding-left: 15px; text-transform: uppercase; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
+        .card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid #333; position: relative; }
+        .v-container { width: 100%; aspect-ratio: 16/9; background: #000; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .card-info { padding: 12px; display: flex; justify-content: space-between; align-items: center; background: #0a0a0a; }
+
+        /* SIDEBAR DESTRA - COMPLETA */
+        .sidebar-right { background: rgba(0,0,0,0.9); padding: 20px; border-left: 1px solid #222; overflow-y: auto; }
+        .ad-banner { width: 100%; height: 200px; background: linear-gradient(45deg, #100, #000); border: 2px solid var(--red); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin-bottom: 20px; }
+        .ad-item { background: #111; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #222; font-size: 11px; }
+
+        /* LOGIN FORM */
+        .form-box { max-width: 400px; background: #111; padding: 40px; border-radius: 20px; border: 2px solid var(--green); margin: 60px auto; text-align: center; box-shadow: 0 0 30px rgba(0,255,0,0.05); }
+        input { width: 100%; padding: 15px; margin: 12px 0; background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 10px; font-weight: bold; }
+        
+        .hidden { display: none !important; }
+        #auth-msg { font-size: 11px; margin-top: 15px; font-weight: bold; min-height: 20px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<div class="bg-watermark">xxxD</div>
+
+<header>
+    <div class="logo" onclick="showTab('home')">xxxD</div>
+    <div id="auth-header">
+        <button class="btn-green" onclick="showTab('auth-page')">LOGIN / SIGNUP</button>
+    </div>
+</header>
+
+<div class="main-wrapper">
+    <aside class="sidebar-left">
+        <div class="menu-item active" onclick="showTab('home')">🏠 Vault Globale</div>
+        <div class="menu-item" onclick="showTab('myvideos')">👤 Video Caricati</div>
+        <div class="menu-item" onclick="showTab('settings')">⚙️ Impostazioni</div>
+    </aside>
+
+    <main class="content">
+        <section id="tab-auth-page" class="section">
+            <div class="form-box">
+                <h2 style="color:var(--green); margin-top:0; letter-spacing:2px;">ACCESSO VAULT</h2>
+                <input type="email" id="email" placeholder="EMAIL UTENTE">
+                <input type="password" id="pass" placeholder="PASSWORD">
+                <button class="btn-green" style="width:100%; margin-top:10px; padding:15px;" onclick="handleAuth('in')">ACCEDI ORA</button>
+                <button class="btn-green" style="width:100%; margin-top:10px; background:white; color:black; padding:15px;" onclick="handleAuth('up')">CREA NUOVO PROFILO</button>
+                <div id="auth-msg"></div>
+            </div>
+        </section>
+
+        <section id="tab-home" class="section active">
+            <div id="upload-panel" class="hidden">
+                <div style="background:rgba(0,255,0,0.05); border:2px dashed var(--green); padding:30px; border-radius:15px; margin-bottom:40px; text-align:center;">
+                    <h3 style="color:var(--green); margin-top:0;">SELEZIONA VIDEO PER IL CLOUD</h3>
+                    <input type="file" id="file-input" accept="video/*" style="border:none; background:transparent;">
+                    <button class="btn-green" onclick="upload()" style="padding:15px 40px;">CARICA E PUBBLICA</button>
+                </div>
+            </div>
+            <div class="title">Archivio Centrale</div>
+            <div id="grid-home" class="grid"></div>
+        </section>
+
+        <section id="tab-settings" class="section">
+            <div class="title">Gestione Profilo</div>
+            <p>Stato Account: <span style="color:var(--green)">ATTIVO (MEMORIZZATO)</span></p>
+            <button class="btn-green" style="background:red; color:white;" onclick="logout()">LOGOUT COMPLETO</button>
+        </section>
+
+        <section id="tab-myvideos" class="section"><div class="title">I Tuoi Contributi</div><div id="grid-mine" class="grid"></div></section>
+    </main>
+
+    <aside class="sidebar-right">
+        <div class="ad-banner">
+            <h4 style="color:white; margin:0;">SPAZIO PUBBLICITARIO</h4>
+            <p style="color:var(--green); font-size:12px;">IL TUO BRAND QUI</p>
+            <small style="color:#444;">contact: ads@xxxd.com</small>
+        </div>
+        <div class="ad-item"><b style="color:var(--red)">xxxD GOLD:</b> Nessun limite di download e streaming 4K sbloccato.</div>
+        <div class="ad-item"><b style="color:var(--green)">SERVER STATUS:</b> Online (Global Node)</div>
+        <div class="ad-item"><b>ULTIMO AGGIORNAMENTO:</b> v2.4.1 (Stable)</div>
+        <div style="margin-top:30px;">
+            <p style="font-size:10px; color:#444; border-bottom:1px solid #222; padding-bottom:5px;">FEED ATTIVITÀ</p>
+            <div style="font-size:10px; color:#777; margin-bottom:10px;">• Nuovo video caricato da utente_22</div>
+            <div style="font-size:10px; color:#777; margin-bottom:10px;">• Manutenzione database completata</div>
+        </div>
+    </aside>
+</div>
+
+<script>
+    const S_URL = "https://acymvofiwwufnsipnhza.supabase.co";
+    const S_KEY = "Sb_publishable_mpOrkbWEmU3UGWLYNeskwQ_gnhRttoK";
+
+    const sb = supabase.createClient(S_URL, S_KEY.trim(), {
+        auth: {
+            persistSession: true,
+            storageKey: 'xxxd_permanent_vault',
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+        }
+    });
+
+    async function init() {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+            document.getElementById('auth-header').innerHTML = `<span style="color:var(--green); font-size:12px;">${session.user.email}</span>`;
+            document.getElementById('upload-panel').classList.remove('hidden');
+            if (document.getElementById('tab-auth-page').classList.contains('active')) showTab('home');
+        }
+        loadGallery();
+    }
+
+    async function handleAuth(type) {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('pass').value;
+        const msg = document.getElementById('auth-msg');
+        
+        if(!email || !password) return alert("Inserisci dati!");
+        msg.innerText = "⏳ CONNESSIONE AL DATABASE...";
+        msg.style.color = "white";
+
+        let res;
+        try {
+            if(type === 'up') {
+                res = await sb.auth.signUp({ email, password });
+                if(res.data.user && !res.data.session) msg.innerText = "✅ CREATO! (CONTROLLA EMAIL O DISATTIVA CONFIRM)";
+            } else {
+                res = await sb.auth.signInWithPassword({ email, password });
+            }
+
+            if(res.error) {
+                msg.innerText = "❌ " + res.error.message;
+                msg.style.color = "red";
+            } else if (res.data.session) {
+                location.reload();
+            }
+        } catch (err) {
+            msg.innerText = "❌ ERRORE API KEY O CONNESSIONE";
+        }
+    }
+
+    async function logout() { await sb.auth.signOut(); location.reload(); }
+
+    function showTab(id) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById('tab-' + id).classList.add('active');
+        document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+    }
+
+    async function upload() {
+        const file = document.getElementById('file-input').files[0];
+        if(!file) return alert("Seleziona un file!");
+        const { data: { user } } = await sb.auth.getUser();
+        const path = `xxxD_${user.id}_${Date.now()}.mp4`;
+        const { error } = await sb.storage.from('videos').upload(path, file);
+        if(error) alert("Errore: " + error.message); else { alert("CARICATO!"); loadGallery(); }
+    }
+
+    async function loadGallery() {
+        const grid = document.getElementById('grid-home');
+        if(!grid) return;
+        const { data, error } = await sb.storage.from('videos').list();
+        if(error) { grid.innerHTML = "<p style='color:red; font-size:11px;'>CONFIGURAZIONE STORAGE MANCANTE</p>"; return; }
+        grid.innerHTML = "";
+        data.forEach(f => {
+            const { data: { publicUrl } } = sb.storage.from('videos').getPublicUrl(f.name);
+            grid.innerHTML += `<div class="card"><div class="v-container"><video src="${publicUrl}#t=0.1" controls playsinline></video></div><div class="card-info"><a href="${publicUrl}" download class="btn-green" style="font-size:9px; text-decoration:none;">SCARICA VIDEO</a></div></div>`;
+        });
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
